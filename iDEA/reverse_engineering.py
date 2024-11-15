@@ -76,11 +76,46 @@ def reverse(
         p, up_p, down_p = iDEA.observables.density_matrix(
             s_fictitious, state=state, return_spins=True
         )
+        #current_res = np.sum(abs(n - target_n))
+        #test_pot = s_fictitious.v_ext + mu * (n**pe - target_n**pe)
+        #test_sys = copy.deepcopy(s_fictitious)
+        #test_sys.v_ext=test_pot
+        #test_state = method.solve(
+        #    test_sys,
+        #    initial=(n, up_n, down_n, p, up_p, down_p),
+        #    silent=True,
+        #    **kwargs
+        #)
+        #test_n = iDEA.observables.density(
+        #    test_sys, state=test_state)
+        #new_res = np.sum(abs(test_n - target_n))
+        #if current_res > new_res:
+        #    print("bad")
+        mu = test_step(mu,pe,method,n,target_n,s_fictitious)
         s_fictitious.v_ext += mu * (n**pe - target_n**pe)
         convergence = np.sum(abs(n - target_n)) * s.dx
+        print(f"convergence: {convergence}      mu: {mu}",end="\r")
+        #input()
     if silent is False:
         print()
     return s_fictitious
+
+def test_step(mu,pe,method,n,target_n,current_sys):
+    current_res = np.sum(abs(n - target_n))
+    test_pot = current_sys.v_ext + mu * (n**pe - target_n**pe)
+    test_sys = copy.deepcopy(current_sys)
+    test_sys.v_ext = test_pot
+    test_state = method.solve(test_sys,silent=True)
+    test_n = iDEA.observables.density(test_sys,state=test_state)
+    new_res = np.sum(abs(test_n-target_n))
+    if current_res < new_res:
+        #print(f"residual difference is {new_res-current_res}")
+        #print(f"too big a step, mu is now: {mu*0.5}")
+        #input()
+        mu = test_step(mu*0.5,pe,method,n,target_n,current_sys)
+    else:
+        mu = 1.1*mu
+    return mu
 
 
 def _residual(
